@@ -19,6 +19,7 @@ services:
       - JWT_ALGORITHM=${JWT_ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
       - DATABASE_URL=${DATABASE_URL} # <-- เราจะใช้ตัวนี้เลย
+      - PYTHONUNBUFFERED=1
     depends_on:
       - db # บอกว่า "ห้าม" สตาร์ท จนกว่า 'db' จะพร้อม
 

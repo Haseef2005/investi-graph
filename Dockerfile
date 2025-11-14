@@ -6,6 +6,9 @@ FROM python:3.11-slim
 # 2. Set Working Directory: บอกว่าโค้ดเราจะอยู่ใน /app
 WORKDIR /app
 
+# "เพิ่มบรรทัดนี้" -> บอก Python ว่าให้ "มองหา" code ที่ "ราก" (/app) ด้วย
+ENV PYTHONPATH=/app
+
 # 3. Copy Dependencies: ก๊อป "ใบรายการ" เข้าไปก่อน
 #    (เราก๊อปแค่ 2 ไฟล์นี้ก่อน เพื่อใช้ "Layer Caching" ของ Docker)
 #    (ถ้า requirements ไม่เปลี่ยน Docker จะไม่ลงใหม่ ประหยัดเวลา)

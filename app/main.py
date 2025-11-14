@@ -1,4 +1,5 @@
-# app/main.py
+import asyncio
+import logging 
 from datetime import timedelta
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -16,6 +17,10 @@ from app.security import (
     verify_token,
     oauth2_scheme,
 )
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, BackgroundTasks
+import time
+
+log = logging.getLogger("uvicorn.error")
 
 # --- "สร้าง" ตาราง (Table) ---
 # เราจะบอกให้แอป "สร้างตาราง" (ถ้ายังไม่มี) ตอนที่มันเริ่มทำงาน
@@ -25,12 +30,13 @@ app = FastAPI(
     version="0.1.0"
 )
 
-@app.on_event("startup")
-async def on_startup():
-    """Create the database tables on startup."""
-    async with engine.begin() as conn:
-        # await conn.run_sync(Base.metadata.drop_all) # <-- (ไว้ล้างตาราง ถ้าอยากเริ่มใหม่)
-        await conn.run_sync(Base.metadata.create_all)
+# alembic จะจัดการเรื่องตารางให้เราเอง
+# @app.on_event("startup")
+# async def on_startup():
+#     """Create the database tables on startup."""
+#     async with engine.begin() as conn:
+#         # await conn.run_sync(Base.metadata.drop_all) # <-- (ไว้ล้างตาราง ถ้าอยากเริ่มใหม่)
+#         await conn.run_sync(Base.metadata.create_all)
 
 
 # --- Auth Functions (อัปเกรดแล้ว!) ---
@@ -62,6 +68,13 @@ async def get_current_user(
 
     return user
 
+# --- Dummy funcition AI ---
+async def process_document_in_background(document_name: str):
+    """(Dummy) AI processing function."""
+    log.info(f"--- 🤖 BACKGROUND TASK: START ---") # <-- แก้
+    log.info(f"Processing document: {document_name}") # <-- แก้
+    await asyncio.sleep(10)
+    log.info(f"--- 🤖 BACKGROUND TASK: DONE ---") # <-- แก้
 
 # --- Endpoints ---
 
@@ -140,3 +153,22 @@ async def read_users_me(
     # Pydantic (schemas.User) จะ "อ่าน" (from_attributes=True)
     # จาก current_user (models.User) ให้เราเอง
     return current_user
+
+# Endpoint "รับข้อมูล" (Data Ingestion)
+@app.post("/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...) # <-- "รับ" ไฟล์
+):
+    # (เรายังไม่เซฟไฟล์จริง... เราแค่ "อ่าน" ชื่อมัน)
+    filename = file.filename
+
+    # "โยน" งานหนักไปทำเบื้องหลัง
+    asyncio.create_task(
+        process_document_in_background(filename)
+    )
+
+    # "ตอบ" User กลับไป "ทันที"
+    return {
+        "message": "File received. Processing started in background.",
+        "filename": filename
+    }
