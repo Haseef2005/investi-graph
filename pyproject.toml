@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "investi-graph"
+version = "0.1.0"
+description = "A project to show full-stack developer and AI engineer skillset"
+authors = ["Haseef2005"]
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
