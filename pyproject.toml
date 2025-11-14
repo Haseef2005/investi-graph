@@ -11,13 +11,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-name = "investi-graph"
-version = "0.1.0"
-description = "A project to showcase Full-stack development and AI engineering skills"
-authors = ["Haseef2005"]
-readme = "README.md"
 packages = [{include = "app"}]
-
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
