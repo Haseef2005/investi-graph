@@ -67,3 +67,12 @@ class Chunk(BaseModel):
 
     class Config:
         from_attributes = True
+
+# (ใหม่!) รับคำถาม
+class QueryRequest(BaseModel):
+    question: str
+
+# (ใหม่!) ส่งคำตอบ + บริบท
+class QueryResponse(BaseModel):
+    answer: str
+    context: list[Chunk] # Reuse schema 'Chunk' ที่มีอยู่แล้ว

@@ -216,3 +216,42 @@ async def read_document_chunks(
     )
     result_chunks = await db.execute(stmt_chunks)
     return result_chunks.scalars().all()
+
+# (ใหม่!) Endpoint ถาม-ตอบ (RAG)
+@app.post(
+    "/documents/{doc_id}/query", 
+    response_model=schemas.QueryResponse
+)
+async def query_document(
+    doc_id: int,
+    request: schemas.QueryRequest, # รับ JSON { "question": "..." }
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # 1. ตรวจสอบสิทธิ์ (เป็นเจ้าของไฟล์ไหม?)
+    stmt_doc = (
+        sa.select(models.Document)
+        .where(models.Document.id == doc_id)
+        .where(models.Document.owner_id == current_user.id)
+    )
+    result_doc = await db.execute(stmt_doc)
+    if result_doc.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # 2. ค้นหา Chunks ที่เกี่ยวข้อง (Retrieve)
+    relevant_chunks = await processing.retrieve_relevant_chunks(
+        document_id=doc_id,
+        query_text=request.question
+    )
+
+    # 3. ให้ AI ตอบคำถาม (Generate)
+    answer = await processing.generate_answer(
+        query=request.question,
+        context_chunks=relevant_chunks
+    )
+
+    # 4. ส่งคำตอบกลับ
+    return schemas.QueryResponse(
+        answer=answer,
+        context=relevant_chunks
+    )

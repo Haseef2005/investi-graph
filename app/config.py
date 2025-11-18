@@ -18,5 +18,8 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
 
+    LLM_PROVIDER: str = "groq"
+    LLM_API_KEY: str
+
 # สร้าง instance เพื่อให้ import ไปใช้ที่อื่นได้
 settings = Settings()

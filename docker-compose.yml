@@ -18,8 +18,10 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - JWT_ALGORITHM=${JWT_ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
-      - DATABASE_URL=${DATABASE_URL} # <-- เราจะใช้ตัวนี้เลย
+      - DATABASE_URL=${DATABASE_URL} 
       - PYTHONUNBUFFERED=1
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - LLM_API_KEY=${LLM_API_KEY}
     depends_on:
       - db # บอกว่า "ห้าม" สตาร์ท จนกว่า 'db' จะพร้อม
 
