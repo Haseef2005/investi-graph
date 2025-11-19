@@ -26,7 +26,7 @@ async def get_user_by_email(db: AsyncSession, email: str):
     )
     return result.scalar_one_or_none()
 
-# "C" - Create
+# "C" - Create User
 async def create_user(db: AsyncSession, user: schemas.UserCreate):
     """
     สร้าง User ใหม่
@@ -49,7 +49,7 @@ async def create_user(db: AsyncSession, user: schemas.UserCreate):
 
     return db_user
 
-# "C" - Create (สำหรับ Document)
+# "C" - Create Document
 async def create_document(
     db: AsyncSession, 
     filename: str, 
@@ -67,16 +67,10 @@ async def create_document(
     await db.refresh(db_document) # <-- Refresh (เพื่อให้ได้ ID)
     return db_document
 
-
-    """
-    "อัปเดต" text ที่สกัดได้ ลง DB
-    """
-    # (เราจะใช้ Query ดิบ... เพราะมันเร็วกว่า Select)
-    stmt = (
-        sa.update(models.Document)
-        .where(models.Document.id == document_id)
-        .values(extracted_text=text)
-    )
+# "D" - Delete Document
+async def delete_document(db: AsyncSession, document_id: int):
+    # การลบนี้จะดึงความสามารถ Cascade Delete จาก models.py
+    stmt = sa.delete(models.Document).where(models.Document.id == document_id)
     await db.execute(stmt)
     await db.commit()
     return

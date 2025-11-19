@@ -32,7 +32,7 @@ class Document(Base):
 
     owner = relationship("User")
     # "บอก" ว่า Document 1 อัน... มี "Chunks" (ลูก) ได้หลายอัน
-    chunks = relationship("Chunk", back_populates="document") 
+    chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan") 
 
 
 # (ใหม่!) ตาราง "ลูก" (เก็บ "ชิ้นส่วน" + "Vector")

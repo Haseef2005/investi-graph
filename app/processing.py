@@ -104,7 +104,7 @@ async def save_extract_chunk_and_embed(
         log.info(f"Cleaned up {file_path}")
 
 
-# 1. ฟังก์ชัน "ค้นหา" (Retrieval)
+# ฟังก์ชัน "ค้นหา" (Retrieval)
 async def retrieve_relevant_chunks(
     document_id: int, 
     query_text: str
@@ -127,8 +127,32 @@ async def retrieve_relevant_chunks(
         result = await db.execute(stmt)
         return result.scalars().all()
 
+# ฟังก์ชันค้นหาจาก "ทุกเอกสาร" ของ User 
+async def retrieve_relevant_chunks_global(
+    user_id: int, 
+    query_text: str
+) -> list[models.Chunk]:
+    """
+    1. แปลงคำถามเป็น Vector
+    2. ค้นหา Chunks ใน DB โดยกรองเฉพาะ "ที่เป็นของ User นี้" (Join กับ Document)
+    """
+    log.info(f"Embedding global query: {query_text}")
+    query_embedding = EMBEDDING_MODEL.encode(query_text)
+    
+    async with SessionLocal() as db:
+        stmt = (
+            sa.select(models.Chunk)
+            .join(models.Document) # <--- (1) Join ตารางแม่
+            .where(models.Document.owner_id == user_id) # <--- (2) กรองเฉพาะของ User นี้
+            .order_by(
+                models.Chunk.embedding.l2_distance(query_embedding)
+            )
+            .limit(5)
+        )
+        result = await db.execute(stmt)
+        return result.scalars().all()
 
-# 2. ฟังก์ชัน "สร้างคำตอบ" (Generation)
+# ฟังก์ชัน "สร้างคำตอบ" (Generation)
 async def generate_answer(
     query: str, 
     context_chunks: list[models.Chunk]

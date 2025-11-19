@@ -18,6 +18,8 @@ from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, B
 import time
 from app import processing
 import sqlalchemy as sa
+import os
+from app.processing import UPLOAD_DIRECTORY
 
 # --- "สร้าง" ตาราง (Table) ---
 # เราจะบอกให้แอป "สร้างตาราง" (ถ้ายังไม่มี) ตอนที่มันเริ่มทำงาน
@@ -255,3 +257,59 @@ async def query_document(
         answer=answer,
         context=relevant_chunks
     )
+
+# --- (ใหม่!) Endpoint ถาม-ตอบ (Global Context - Task 8.5) ---
+@app.post(
+    "/documents/query", # <--- ไม่มี {doc_id} แล้ว
+    response_model=schemas.QueryResponse
+)
+async def query_all_documents(
+    request: schemas.QueryRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # 1. ค้นหา Chunks จาก "ทุกไฟล์" ของ User
+    relevant_chunks = await processing.retrieve_relevant_chunks_global(
+        user_id=current_user.id,
+        query_text=request.question
+    )
+    
+    # 2. สร้างคำตอบ (ใช้ฟังก์ชันเดิม)
+    answer = await processing.generate_answer(
+        query=request.question,
+        context_chunks=relevant_chunks
+    )
+    
+    return schemas.QueryResponse(
+        answer=answer,
+        context=relevant_chunks
+    )
+
+# --- (ใหม่!) Endpoint ลบเอกสาร (Task 8.6) ---
+@app.delete("/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_document(
+    doc_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # 1. เช็กว่ามีไฟล์จริงและเป็นของ User คนนี้
+    stmt = (
+        sa.select(models.Document)
+        .where(models.Document.id == doc_id)
+        .where(models.Document.owner_id == current_user.id)
+    )
+    result = await db.execute(stmt)
+    db_doc = result.scalar_one_or_none()
+    
+    if db_doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # 2. ลบไฟล์ออกจาก Disk 
+    file_path = os.path.join(UPLOAD_DIRECTORY, f"doc_{doc_id}_{db_doc.filename}")
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        
+    # 3. ลบออกจาก Database (Cascade Rule จะลบ Chunks ให้เอง)
+    await crud.delete_document(db, doc_id)
+    
+    return None

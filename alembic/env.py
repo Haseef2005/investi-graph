@@ -3,6 +3,7 @@ import os
 from app.database import Base
 from app import models  # <-- "นี่คือ 'จุดตาย' ที่เราลืม!"
 import asyncio
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -10,6 +11,18 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
+
+if sys.platform == "win32":
+    # ถ้ายังไม่ได้ตั้ง loop factory (มักจะเป็น ProactorLoop) 
+    # ให้เปลี่ยนเป็น SelectorEventLoop สำหรับการทำงานแบบ async กับ Psycopg
+    try:
+        # ใช้ SelectorEventLoop ถ้ามี (ปกติจะใช้ได้ใน Python 3.4+)
+        # ใช้ Policy แทน Factory สำหรับ Python เวอร์ชันใหม่
+        policy = asyncio.WindowsSelectorEventLoopPolicy()
+        asyncio.set_event_loop_policy(policy)
+    except AttributeError:
+        # Fallback หรือทำตามที่ระบบกำหนด
+        pass
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
