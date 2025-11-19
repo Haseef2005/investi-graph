@@ -52,7 +52,7 @@ services:
       # ตั้งรหัสผ่านให้ Neo4j
       NEO4J_AUTH: neo4j/mysecretneo4jpassword # user/password (ตั้งตามนี้เลย)
       # ให้ Neo4j อนุญาตการเชื่อมต่อจากที่อื่น
-      NEO4J_dbms_connector_bolt_advertised__address: "localhost:7687"
+      #NEO4J_dbms_connector_bolt_advertised__address: "localhost:7687"
     restart: always
 
 volumes:
