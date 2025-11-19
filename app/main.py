@@ -264,7 +264,8 @@ async def query_document(
     # 3. ให้ AI ตอบคำถาม (Generate)
     answer = await processing.generate_answer(
         query=request.question,
-        context_chunks=relevant_chunks
+        context_chunks=relevant_chunks,
+        doc_id=doc_id
     )
 
     # 4. ส่งคำตอบกลับ
@@ -292,7 +293,8 @@ async def query_all_documents(
     # 2. สร้างคำตอบ (ใช้ฟังก์ชันเดิม)
     answer = await processing.generate_answer(
         query=request.question,
-        context_chunks=relevant_chunks
+        context_chunks=relevant_chunks,
+        doc_id=None
     )
     
     return schemas.QueryResponse(

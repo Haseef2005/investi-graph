@@ -191,3 +191,73 @@ async def get_document_graph(document_id: int) -> dict:
         "nodes": list(nodes_dict.values()),
         "edges": edges_list
     }
+
+# --- GraphRAG Logic ---
+
+async def query_graph_context(query_text: str, doc_id: int = None) -> str:
+    """
+    1. Extract entities from user query (using LLM).
+    2. Search for these entities in Neo4j.
+    3. Return their relationships as text context.
+    """
+    # 1. ให้ AI ช่วยหา Keywords/Entities จากคำถาม
+    extraction_prompt = f"""
+    Extract key entities (Company, Person, Product, Concept) from this question.
+    Return ONLY a JSON list of strings.
+    Example: ["NVIDIA", "Jensen Huang"]
+    
+    Question: {query_text}
+    """
+    
+    try:
+        response = await acompletion(
+            model=f"{settings.LLM_PROVIDER}/llama-3.1-8b-instant",
+            api_key=settings.LLM_API_KEY,
+            messages=[{"role": "user", "content": extraction_prompt}],
+            temperature=0.0,
+            response_format={"type": "json_object"}
+        )
+        content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
+        data = json.loads(content)
+        # บางที LLM คืนค่า key ต่างกัน กันเหนียวไว้ก่อน
+        entities = data.get("entities", data.get("keywords", list(data.values())[0]))
+        
+        if not entities: return ""
+        
+        log.info(f"GraphRAG searching for entities: {entities}")
+
+    except Exception as e:
+        log.error(f"Failed to extract entities for GraphRAG: {e}")
+        return ""
+
+    # 2. ค้นหาใน Neo4j (หาเพื่อนบ้าน 1 hop)
+    # ใช้ CONTAINS เพื่อให้ค้นหาแบบ case-insensitive ง่ายๆ
+    cypher_query = """
+    UNWIND $entities AS target_name
+    MATCH (n:Entity)
+    WHERE toLower(n.name) CONTAINS toLower(target_name)
+    """
+    
+    # ถ้าระบุ doc_id มาด้วย ให้กรองเฉพาะ doc นั้น (ถ้าไม่ระบุ คือ Global Search)
+    if doc_id:
+        cypher_query += " AND n.doc_id = $doc_id"
+        
+    cypher_query += """
+    MATCH (n)-[r]-(neighbor)
+    RETURN n.name AS source, type(r) AS rel, neighbor.name AS target
+    LIMIT 20
+    """
+
+    context_lines = []
+    async with driver.session() as session:
+        result = await session.run(cypher_query, entities=entities, doc_id=doc_id)
+        async for record in result:
+            line = f"{record['source']} --[{record['rel']}]--> {record['target']}"
+            context_lines.append(line)
+            
+    if not context_lines:
+        return ""
+        
+    graph_context = "Knowledge Graph Connections:\n" + "\n".join(context_lines)
+    log.info(f"GraphRAG found {len(context_lines)} connections.")
+    return graph_context
