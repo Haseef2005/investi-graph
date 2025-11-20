@@ -1,80 +1,65 @@
 # 📊 Investi-Graph Backend
 
-> **Advanced AI-Powered Financial Document Intelligence Platform**
+> **Advanced RAG-Powered Financial Document Analysis API**
 
-Investi-Graph is a cutting-edge backend system that revolutionizes financial document analysis by combining **Hybrid RAG Architecture**, **Knowledge Graph Intelligence**, and **SEC EDGAR Integration**. Built with FastAPI, it provides enterprise-grade performance with async processing, JWT authentication, and automated financial data retrieval.
+Investi-Graph is a state-of-the-art backend system that combines **Vector Search**, **Knowledge Graphs**, and **Cross-Encoder Reranking** to deliver intelligent financial document analysis. Built with FastAPI, it provides enterprise-grade performance with async processing, JWT authentication, and containerized deployment.
 
 ## 🚀 What Makes It Special
 
-🧠 **Intelligent Document Processing**
-- **Hybrid RAG**: Vector embeddings + Knowledge graphs + Cross-encoder reranking
-- **Smart Content Extraction**: Automatic removal of cover pages, TOC, and exhibits 
-- **Knowledge Graph Generation**: AI-powered entity and relationship extraction
-- **Multi-source Context Fusion**: Superior accuracy through intelligent context merging
+🧠 **Hybrid RAG Architecture**
+- Vector embeddings for semantic search (pgvector)
+- Knowledge graph relationships (Neo4j)  
+- Smart reranking with Cross-Encoder models
+- Multi-modal context fusion for superior accuracy
 
-📈 **SEC EDGAR Integration**
-- **Automated 10-K/10-Q Retrieval**: Direct access to official SEC filings
-- **Smart Content Filtering**: Removes XBRL tags, binary data, and irrelevant sections
-- **Ticker-Based Queries**: Simple company ticker input for instant document access
-- **Clean Financial Data**: Pre-processed, analysis-ready content
+🔒 **Enterprise Security**
+- JWT authentication with Argon2 hashing
+- Role-based access control
+- Secure file upload handling
+- Production-ready CORS configuration
 
-🔒 **Enterprise-Grade Security**
-- JWT authentication with Argon2 password hashing
-- Role-based access control and document ownership
-- Secure file upload with content validation
-- Production-ready CORS and rate limiting
+⚡ **High Performance**
+- Async document processing pipeline
+- Background task queue for heavy operations
+- Optimized database queries with SQLAlchemy
+- Docker containerization for scalability
 
-⚡ **High Performance Architecture**
-- Async document processing pipeline with background tasks
-- Optimized vector search with pgvector
-- Smart chunking with overlap optimization
-- Docker containerization for horizontal scaling
-
-## 🏗️ System Architecture
+## 🏗️ Architecture Overview
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Frontend      │───▶│   FastAPI App    │───▶│   PostgreSQL    │
-│   (React/Vue)   │    │   (Python)       │    │   + pgvector    │
+│   Client App    │───▶│   FastAPI App    │───▶│   PostgreSQL    │
+│   (Frontend)    │    │   (Backend)      │    │   + pgvector    │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │                        │
-                                ▼                        │
-                       ┌──────────────────┐              │
-                       │     Neo4j        │              │
-                       │ (Knowledge Graph)│              │
-                       └──────────────────┘              │
-                                │                        │
-                                ▼                        ▼
-                       ┌──────────────────┐    ┌─────────────────┐
-                       │   SEC EDGAR      │    │   File Storage  │
-                       │   (10-K/10-Q)    │    │   (Documents)   │
-                       └──────────────────┘    └─────────────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │     Neo4j        │
+                       │ (Knowledge Graph)│
+                       └──────────────────┘
 ```
 
-**Enhanced Processing Pipeline:**
-1. **Input** → Manual upload OR automated SEC ticker retrieval
-2. **Extract** → PDF/HTML parsing with smart content cropping
-3. **Clean** → Remove cover pages, XBRL tags, and binary content
-4. **Chunk** → Intelligent text segmentation with overlap
-5. **Embed** → Vector embeddings generation (sentence-transformers)
-6. **Graph** → AI-powered entity/relationship extraction
-7. **Store** → Multi-database persistence (PostgreSQL + Neo4j)
-8. **Query** → Hybrid RAG with graph-enhanced context
+**Processing Flow:**
+1. **Upload** → PDF/TXT document processing
+2. **Extract** → Text extraction and chunking  
+3. **Embed** → Vector embeddings generation
+4. **Graph** → Entity/relationship extraction
+5. **Store** → Multi-database persistence
+6. **Query** → Hybrid RAG with reranking
 
 ## 🛠️ Tech Stack
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| **API Framework** | FastAPI + Uvicorn | Async REST API with OpenAPI docs |
-| **Database** | PostgreSQL 15 + pgvector | Primary data & vector storage |
+| **API Framework** | FastAPI + Uvicorn | Async REST API |
+| **Database** | PostgreSQL 15 | Primary data storage |
+| **Vector Storage** | pgvector | Embeddings & similarity search |
 | **Graph Database** | Neo4j | Knowledge graph storage |
 | **Authentication** | JWT + Argon2 | Secure user management |
-| **Text Processing** | sentence-transformers | Text vectorization |
-| **AI Models** | CrossEncoder | Precision reranking |
-| **LLM Provider** | Groq (Llama 3.1) | Answer generation |
-| **SEC Data** | sec-edgar-downloader | Official SEC filings |
-| **Content Parsing** | BeautifulSoup + PyPDF2 | Document extraction |
-| **Containerization** | Docker + Compose | Environment management |
+| **Embeddings** | sentence-transformers | Text vectorization |
+| **Reranking** | CrossEncoder | Precision improvement |
+| **LLM** | Groq (Llama 3.1) | Answer generation |
+| **Containerization** | Docker Compose | Environment management |
 | **Migrations** | Alembic | Database versioning |
 
 ## 📋 Prerequisites
@@ -83,7 +68,6 @@ Investi-Graph is a cutting-edge backend system that revolutionizes financial doc
 - **Docker Compose** (v2.0+)
 - **Git**
 - **Groq API Key** ([Get Free Key](https://console.groq.com))
-- **SEC API Email** (Required for SEC EDGAR access)
 
 ## ⚡ Quick Start
 
@@ -142,18 +126,12 @@ LLM_PROVIDER="groq"
 LLM_API_KEY="gsk_your_groq_api_key_here"
 
 # ===========================================
-# SEC EDGAR INTEGRATION  
-# ===========================================
-SEC_API_EMAIL="your-email@company.com"
-
-# ===========================================
 # OPTIONAL: CUSTOM SETTINGS
 # ===========================================
 # CORS_ORIGINS=["http://localhost:3000", "https://yourdomain.com"]
 # MAX_FILE_SIZE_MB=50
 # CHUNK_SIZE=1000
 # CHUNK_OVERLAP=200
-# MAX_GRAPH_CHUNKS=10
 ```
 
 ### 3. Start Services
@@ -188,9 +166,9 @@ docker-compose logs app | grep -i "database"
 curl -X POST "http://localhost:8000/users/" \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "john_doe",
-    "email": "john.doe@company.com", 
-    "password": "SecurePassword123!"
+    "email": "john.doe@company.com",
+    "password": "SecurePassword123!",
+    "full_name": "John Doe"
   }'
 ```
 
@@ -198,41 +176,42 @@ curl -X POST "http://localhost:8000/users/" \
 ```bash
 curl -X POST "http://localhost:8000/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=john_doe&password=SecurePassword123!"
+  -d "username=john.doe@company.com&password=SecurePassword123!"
 ```
 
 **Response:**
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer"
+  "token_type": "bearer",
+  "expires_in": 86400
 }
 ```
 
 ### 📄 Document Management
 
-#### 1. Upload Document (Manual)
+#### 1. Upload Document
 ```bash
 curl -X POST "http://localhost:8000/documents/" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -F "file=@financial-report-2024.pdf"
 ```
 
-#### 2. Fetch SEC Document (Automated)
-```bash
-curl -X POST "http://localhost:8000/documents/fetch-sec" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "ticker": "TSLA"
-  }'
-```
-
 **Response:**
 ```json
 {
-  "message": "Started fetching 10-K for TSLA. Check your documents list in a few minutes."
+  "id": 1,
+  "filename": "financial-report-2024.pdf", 
+  "status": "processing",
+  "uploaded_at": "2024-11-19T09:13:46.549Z",
+  "file_size": 2048576
 }
+```
+
+#### 2. Check Processing Status
+```bash
+curl -X GET "http://localhost:8000/documents/1" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 #### 3. List All Documents
@@ -241,61 +220,59 @@ curl -X GET "http://localhost:8000/documents/" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "filename": "TSLA_10K_Report.txt",
-    "uploaded_at": "2024-11-20T10:30:00Z",
-    "owner_id": 1
-  },
-  {
-    "id": 2, 
-    "filename": "quarterly-earnings-q3.pdf",
-    "uploaded_at": "2024-11-20T11:15:00Z",
-    "owner_id": 1
-  }
-]
-```
+### 🤖 Advanced RAG Queries
 
-### 🤖 Advanced AI Queries
-
-#### 1. Document-Specific RAG Query
+#### 1. Chat with Specific Document
 ```bash
-curl -X POST "http://localhost:8000/documents/1/query" \
+curl -X POST "http://localhost:8000/documents/1/chat" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "question": "What are Tesla main revenue streams in 2023?"
+    "question": "What was the company revenue growth in Q3 2024?",
+    "include_sources": true
   }'
 ```
 
 **Response:**
 ```json
 {
-  "answer": "Based on Tesla's 10-K filing, the company's main revenue streams in 2023 include: 1) Automotive sales (81.4% of total revenue) including Model S, 3, X, and Y vehicles; 2) Energy generation and storage (6.8%) through solar panels and Powerwall systems; 3) Services and other (11.8%) including Supercharging, insurance, and vehicle services...",
-  "context": [
+  "answer": "Based on the financial report, the company achieved a 15.3% revenue growth in Q3 2024, reaching $2.8 billion compared to $2.43 billion in Q3 2023...",
+  "sources": [
     {
-      "id": 45,
-      "text": "Automotive sales revenue increased to $75.2B in 2023...",
-      "document_id": 1
+      "chunk_id": 45,
+      "text": "Q3 2024 revenue increased to $2.8B...",
+      "relevance_score": 0.94
     }
-  ]
+  ],
+  "processing_time": 1.2,
+  "method": "hybrid_rag"
 }
 ```
 
-#### 2. Global Knowledge Query (All Documents)
+#### 2. Global Search (All Documents)
 ```bash
-curl -X POST "http://localhost:8000/documents/query" \
+curl -X POST "http://localhost:8000/chat" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "question": "Compare the risk factors between Tesla and Apple"
+    "question": "Compare the risk factors between Tesla and NVIDIA",
+    "max_sources": 5
   }'
 ```
 
-#### 3. Knowledge Graph Visualization
+#### 3. Knowledge Graph Query
+```bash
+curl -X POST "http://localhost:8000/documents/1/graph-query" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Show relationships between executives and subsidiaries"
+  }'
+```
+
+### 📊 Knowledge Graph Visualization
+
+#### Get Document Graph Structure
 ```bash
 curl -X GET "http://localhost:8000/documents/1/graph" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
@@ -308,31 +285,35 @@ curl -X GET "http://localhost:8000/documents/1/graph" \
     {
       "id": "Tesla Inc",
       "label": "Tesla Inc", 
-      "type": "COMPANY"
+      "type": "COMPANY",
+      "properties": {
+        "industry": "Automotive",
+        "founded": "2003"
+      }
     },
     {
       "id": "Elon Musk",
       "label": "Elon Musk",
-      "type": "PERSON"
-    },
-    {
-      "id": "Gigafactory",
-      "label": "Gigafactory",
-      "type": "FACILITY"
+      "type": "PERSON", 
+      "properties": {
+        "role": "CEO"
+      }
     }
   ],
   "edges": [
     {
       "source": "Elon Musk",
       "target": "Tesla Inc",
-      "relation": "CEO_OF"
-    },
-    {
-      "source": "Tesla Inc",
-      "target": "Gigafactory", 
-      "relation": "OWNS"
+      "relationship": "CEO_OF",
+      "properties": {
+        "since": "2008"
+      }
     }
-  ]
+  ],
+  "statistics": {
+    "total_nodes": 156,
+    "total_relationships": 234
+  }
 }
 ```
 
@@ -376,26 +357,24 @@ docker exec investi_app alembic history
 ## 📁 Project Structure
 
 ```
-investi-graph-backend/
+investi-graph/
 ├── 📁 app/                          # Main application code
-│   ├── 🐍 main.py                   # FastAPI app & API routes
+│   ├── 🐍 main.py                   # FastAPI app & routes
 │   ├── 🔧 config.py                 # Configuration settings  
-│   ├── 💾 database.py               # Database connection & session
-│   ├── 📋 models.py                 # SQLAlchemy ORM models
-│   ├── 📄 schemas.py                # Pydantic request/response schemas
-│   ├── 🔨 crud.py                   # Database CRUD operations
-│   ├── 🔐 security.py               # JWT auth & password hashing
+│   ├── 💾 database.py               # Database connection
+│   ├── 📋 models.py                 # SQLAlchemy models
+│   ├── 📄 schemas.py                # Pydantic schemas
+│   ├── 🔨 crud.py                   # Database operations
+│   ├── 🔐 security.py               # Authentication logic
 │   ├── ⚙️  processing.py            # Document processing pipeline
-│   ├── 🕸️  knowledge_graph.py       # Neo4j graph operations
-│   └── 🏢 sec_service.py            # SEC EDGAR integration
+│   └── 🕸️  knowledge_graph.py       # Neo4j operations
 ├── 📁 alembic/                      # Database migrations
 │   └── 📁 versions/                 # Migration files
-├── 📁 temp_sec/                     # Temporary SEC download storage
-├── 📁 uploads/                      # User uploaded files
+├── 📁 uploads/                      # File upload directory
 ├── 🐳 docker-compose.yml            # Multi-service orchestration
-├── 🐳 Dockerfile                    # Application container config
+├── 🐳 Dockerfile                    # Application container
 ├── 📦 requirements.txt              # Python dependencies
-├── ⚙️  alembic.ini                  # Database migration config  
+├── ⚙️  alembic.ini                  # Migration configuration  
 ├── 📝 README.md                     # Project documentation
 └── 🔒 .env                          # Environment variables
 ```
@@ -427,19 +406,12 @@ docker-compose up db -d
 - Check token hasn't expired
 - Ensure `Authorization: Bearer TOKEN` format
 
-**🤖 SEC API Errors**
+**🤖 LLM API Errors**
 ```bash
-# Test SEC EDGAR availability
-curl "https://www.sec.gov/files/company_tickers.json" | head
-
-# Check SEC rate limiting (max 10 requests/second)
-# Add delays between requests if needed
+# Test Groq API connection
+curl -H "Authorization: Bearer YOUR_GROQ_KEY" \
+  https://api.groq.com/openai/v1/models
 ```
-
-**🔐 Invalid Ticker Symbol**
-- Verify ticker exists on SEC EDGAR database
-- Use exact company ticker (e.g., TSLA not Tesla)
-- Check company has filed 10-K reports recently
 
 **🕸️ Neo4j Connection Issues**
 ```bash
@@ -485,13 +457,12 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 **Production Checklist:**
 - [ ] Change all default passwords in `.env`
 - [ ] Use strong JWT secret (32+ characters)
-- [ ] Set valid SEC API email address
 - [ ] Enable HTTPS in production
 - [ ] Configure CORS for specific domains only
-- [ ] Implement rate limiting for SEC requests
-- [ ] Regular security updates and monitoring
+- [ ] Implement rate limiting
+- [ ] Regular security updates
+- [ ] Monitor API usage and errors
 - [ ] Backup databases regularly
-- [ ] Monitor SEC API usage limits (10 req/sec)
 
 ```bash
 # Generate secure JWT secret
@@ -499,38 +470,9 @@ openssl rand -hex 32
 
 # Test security headers
 curl -I http://localhost:8000/docs
-
-# Verify SEC email format
-echo "your-email@company.com" | grep -E "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
 ```
 
-## 🆕 New Features & Enhancements
-
-### 📈 SEC EDGAR Integration
-- **Automated Document Retrieval**: Fetch official 10-K/10-Q reports directly from SEC EDGAR
-- **Ticker-Based Access**: Simple company ticker input (e.g., "TSLA", "AAPL") 
-- **Smart Content Processing**: Removes cover pages, table of contents, and exhibits
-- **Clean Financial Data**: Filters out XBRL tags and binary content automatically
-
-### 🧹 Enhanced Document Processing
-- **Intelligent Content Cropping**: Auto-removes non-essential sections (covers, signatures, exhibits)
-- **XBRL Tag Filtering**: Eliminates technical metadata from SEC filings
-- **Optimized Chunking**: Improved text segmentation for better context preservation
-- **Binary Content Removal**: Strips out embedded images and unnecessary data
-
-### 🕸️ Advanced Knowledge Graph
-- **AI Entity Extraction**: Automatic identification of companies, people, locations, concepts
-- **Relationship Mapping**: Smart detection of business relationships and hierarchies  
-- **Graph Filtering**: Removes low-quality entities and maintains graph cleanliness
-- **Neo4j Integration**: Persistent storage with Cypher query capabilities
-
-### 🔧 Technical Improvements
-- **Background Processing**: Async document handling for better user experience
-- **Error Handling**: Robust error recovery and logging throughout the pipeline
-- **Content Validation**: Smart document format detection and processing
-- **Performance Optimization**: Efficient database queries and caching strategies
-
----
+## 🤝 Contributing
 
 We welcome contributions! Please follow these steps:
 
