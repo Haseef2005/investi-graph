@@ -15,10 +15,11 @@ from app.security import (
     oauth2_scheme,
 )
 from app import processing
+from app import sec_service
 import sqlalchemy as sa
 import os
 from app.processing import UPLOAD_DIRECTORY
-from app.knowledge_graph import check_neo4j_connection, close_neo4j_driver, get_document_graph
+from app.knowledge_graph import check_neo4j_connection, close_neo4j_driver, get_document_graph, delete_document_graph
 from contextlib import asynccontextmanager
 
 # จัดการ Life Cycle (เปิด/ปิด Neo4j) ---
@@ -290,7 +291,7 @@ async def delete_document(
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 1. เช็กว่ามีไฟล์จริงและเป็นของ User คนนี้
+    # 1. เช็กว่ามีไฟล์จริงและเป็นของ User คนนี้ (เหมือนเดิม)
     stmt = (
         sa.select(models.Document)
         .where(models.Document.id == doc_id)
@@ -302,12 +303,17 @@ async def delete_document(
     if db_doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    # 2. ลบไฟล์ออกจาก Disk 
+    # 2. ลบไฟล์ออกจาก Disk (เหมือนเดิม)
     file_path = os.path.join(UPLOAD_DIRECTORY, f"doc_{doc_id}_{db_doc.filename}")
     if os.path.exists(file_path):
         os.remove(file_path)
         
-    # 3. ลบออกจาก Database (Cascade Rule จะลบ Chunks ให้เอง)
+    # 3. ลบกราฟออกจาก Neo4j ---
+    # (สั่งลบก่อนลบใน DB เผื่อมี Error จะได้รู้ แต่จริงๆ ไว้หลังก็ได้)
+    await delete_document_graph(doc_id)
+    # ------------------------------------
+
+    # 4. ลบออกจาก Database (Cascade Rule จะลบ Chunks ใน PG ให้เอง)
     await crud.delete_document(db, doc_id)
     
     return None
@@ -333,3 +339,21 @@ async def get_document_graph_data(
     graph_data = await get_document_graph(doc_id)
     
     return graph_data
+
+# Endpoint ดึงงบจาก SEC
+@app.post("/documents/fetch-sec")
+async def fetch_sec_document(
+    req: schemas.SecRequest,
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Trigger background job to fetch 10-K from SEC EDGAR using asyncio
+    """
+    asyncio.create_task(
+        sec_service.fetch_and_process_10k(
+            user_id=current_user.id,
+            ticker=req.ticker
+        )
+    )
+    
+    return {"message": f"Started fetching 10-K for {req.ticker}. Check your documents list in a few minutes."}

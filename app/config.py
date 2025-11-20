@@ -32,5 +32,7 @@ class Settings(BaseSettings):
     NEO4J_USER: str = "neo4j"
     NEO4J_PASSWORD: str
 
+    SEC_API_EMAIL: str = "phuminunsk141@gamail.com"
+
 # สร้าง instance เพื่อให้ import ไปใช้ที่อื่นได้
 settings = Settings()

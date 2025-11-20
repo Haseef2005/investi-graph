@@ -91,3 +91,6 @@ class GraphEdge(BaseModel):
 class GraphData(BaseModel):
     nodes: list[GraphNode]
     edges: list[GraphEdge]
+
+class SecRequest(BaseModel):
+    ticker: str # เช่น TSLA, AAPL, NVDA

@@ -93,36 +93,82 @@ async def extract_graph_from_text(text_chunk: str) -> dict:
 # --- Core Logic: Neo4j Storage ---
 
 async def store_graph_data(document_id: int, graph_data: dict):
-    """
-    บันทึก Nodes และ Edges ลง Neo4j ด้วย Cypher Query
-    """
-    nodes = graph_data.get("nodes", [])
-    edges = graph_data.get("edges", [])
+    raw_nodes = graph_data.get("nodes", [])
+    raw_edges = graph_data.get("edges", [])
+
+    if not raw_nodes and not raw_edges:
+        return
+
+    # --- 🛡️ FILTERING LOGIC (กรองขยะทิ้ง) ---
+    valid_nodes = []
+    valid_node_ids = set()
+    
+    # คำต้องห้าม
+    BLACKLIST_TERMS = ["us-gaap", "srt:", "nvda:", "Member", "Domain", "Table"]
+    
+    for node in raw_nodes:
+        node_id = node.get("id", "")
+        node_type = node.get("type", "")
+        
+        # 1. กรองพวกที่มี : หรือเป็นวันที่
+        if ":" in node_id or node_type in ["DATE", "TIMEPERIOD"]:
+            continue
+            
+        # 2. กรองคำต้องห้าม (XBRL Tags)
+        if any(term in node_id for term in BLACKLIST_TERMS):
+            continue
+            
+        # 3. กรองพวกชื่อสั้นเกินไป (ขยะ)
+        if len(node_id) < 2:
+            continue
+
+        valid_nodes.append(node)
+        valid_node_ids.add(node_id)
+
+    # กรอง Edges: ต้องเชื่อมกับ Node ที่รอดชีวิตเท่านั้น
+    valid_edges = []
+    for edge in raw_edges:
+        if edge["source"] in valid_node_ids and edge["target"] in valid_node_ids:
+            valid_edges.append(edge)
+    # ---------------------------------------
+
+    # ใช้ valid_nodes / valid_edges แทนของเดิม
+    nodes = valid_nodes
+    edges = valid_edges
 
     if not nodes and not edges:
         return
 
-    # Cypher Query: ใช้ UNWIND เพื่อ Loop สร้างข้อมูลทีละเยอะๆ (Batch)
-    query = """
-    // 1. สร้าง Nodes
-    UNWIND $nodes AS node
-    MERGE (e:Entity {name: node.id})
-    SET e.type = node.type, e.doc_id = $doc_id
-
-    // 2. สร้าง Relationships
-    WITH e
-    UNWIND $edges AS edge
-    MATCH (source:Entity {name: edge.source})
-    MATCH (target:Entity {name: edge.target})
-    MERGE (source)-[r:RELATED_TO {type: edge.relation}]->(target)
-    """
-
+    # --- 💾 STORAGE LOGIC ---
     async with driver.session() as session:
-        try:
-            await session.run(query, nodes=nodes, edges=edges, doc_id=document_id)
-            log.info(f"Graph stored: {len(nodes)} nodes, {len(edges)} edges for Doc {document_id}")
-        except Exception as e:
-            log.error(f"Neo4j storage failed: {e}")
+        # 1. สร้าง Nodes ก่อน
+        for node in nodes:
+            query = """
+            MERGE (n:Entity {name: $name, doc_id: $doc_id})
+            SET n.type = $type
+            """
+            await session.run(query, 
+                name=node["id"], 
+                doc_id=document_id, 
+                type=node.get("type", "Unknown")
+            )
+
+        # 2. สร้าง Relationships
+        for edge in edges:
+            query = """
+            MATCH (a:Entity {name: $source, doc_id: $doc_id})
+            MATCH (b:Entity {name: $target, doc_id: $doc_id})
+            MERGE (a)-[r:RELATED_TO]->(b)
+            SET r.type = $relation_type
+            """
+            await session.run(query,
+                source=edge["source"],
+                target=edge["target"], 
+                doc_id=document_id,
+                relation_type=edge["relation"]
+            )
+
+    log.info(f"📊 Stored {len(nodes)} nodes and {len(edges)} edges for Document {document_id}")
 
 async def get_document_graph(document_id: int) -> dict:
     """
@@ -257,3 +303,20 @@ async def query_graph_context(query_text: str, doc_id: int = None) -> str:
     graph_context = "Knowledge Graph Connections:\n" + "\n".join(context_lines)
     log.info(f"GraphRAG found {len(context_lines)} connections.")
     return graph_context
+
+async def delete_document_graph(document_id: int):
+    """
+    ลบ Nodes และ Relationships ทั้งหมดที่เป็นของเอกสารนี้
+    """
+    # DETACH DELETE = ลบเส้นความสัมพันธ์ออกก่อน แล้วค่อยลบโหนด (ไม่งั้นจะลบไม่ได้ถ้ามีเส้นติดอยู่)
+    query = """
+    MATCH (n {doc_id: $doc_id})
+    DETACH DELETE n
+    """
+    
+    async with driver.session() as session:
+        try:
+            await session.run(query, doc_id=document_id)
+            log.info(f"🗑️ Deleted graph nodes for Document ID: {document_id}")
+        except Exception as e:
+            log.error(f"❌ Failed to delete graph for Doc {document_id}: {e}")

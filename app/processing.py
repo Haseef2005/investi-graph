@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import aiofiles
@@ -11,6 +12,7 @@ import sqlalchemy as sa
 from litellm import acompletion
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed
 from app import knowledge_graph
+import re
 
 UPLOAD_DIRECTORY = "/app/uploads"
 log = logging.getLogger("uvicorn.error")
@@ -54,6 +56,8 @@ async def save_extract_chunk_and_embed(
             reader = PdfReader(file_path)
             for page in reader.pages:
                 extracted_text += page.extract_text() + "\n"
+            log.info("✂️ Cropping PDF content...")
+            extracted_text = crop_pdf_content(extracted_text)
         else:
             extracted_text = content.decode("utf-8")
 
@@ -217,3 +221,46 @@ async def generate_answer(
     except Exception as e:
         log.error(f"Generation failed: {e}")
         return "Error generating response."
+    
+def crop_pdf_content(text: str) -> str:
+    """
+    ตัดหน้าปกและสารบัญสำหรับไฟล์ PDF (Logic เดียวกับ 10-K)
+    """
+    # 1. พยายามหาจุดเริ่ม: "Item 1. Business"
+    # PDF มักจะมีสารบัญที่เขียนว่า "Item 1. Business ....... 5"
+    # เราจึงต้องหาอันที่ 2 หรืออันที่ไม่มีจุดไข่ปลาตามหลัง (แต่เช็กยาก เอาอันที่ 2 ง่ายสุด)
+    
+    start_pattern = r"Item\s+1\.?\s+Business"
+    matches = list(re.finditer(start_pattern, text, re.IGNORECASE))
+    
+    start_index = 0
+    if len(matches) >= 2:
+        # เจอมากกว่า 1 -> สันนิษฐานว่าอันแรกคือสารบัญ -> เอาอันที่ 2
+        start_index = matches[1].start()
+        log.info("✂️ PDF Crop: Skipped TOC, starting at 2nd occurrence.")
+    elif len(matches) == 1:
+        start_index = matches[0].start()
+        log.info("✂️ PDF Crop: Found start marker.")
+    else:
+        # ⚠️ ถ้าหา Item 1 ไม่เจอ (เช่น เป็น Annual Report แบบสวยงาม ไม่ใช่ 10-K)
+        # ลองหาคำว่า "Financial Highlights" หรือ "Letter to Shareholders" แทนไหม?
+        # หรือถ้าไม่เจอจริงๆ ก็เอาทั้งหมด
+        log.info("⚠️ PDF Crop: Start marker not found. Using full text.")
+
+    # 2. พยายามหาจุดจบ: "Item 15" หรือ "Signatures" หรือ "Form 10-K Summary"
+    end_pattern = r"(Item\s+15\.?\s+Exhibits|SIGNATURES|Form\s+10-K\s+Summary)"
+    end_match = re.search(end_pattern, text[start_index:], re.IGNORECASE)
+    
+    end_index = len(text)
+    if end_match:
+        end_index = start_index + end_match.start()
+        log.info("✂️ PDF Crop: Found end marker.")
+
+    cropped_text = text[start_index:end_index]
+    
+    # กันเหนียว: ถ้าตัดแล้วเหี้ยนเตียน (สั้นเกิน) ให้คืนค่าเดิม
+    if len(cropped_text) < 1000:
+        log.warning("⚠️ PDF Crop result too short. Reverting to full text.")
+        return text
+        
+    return cropped_text
