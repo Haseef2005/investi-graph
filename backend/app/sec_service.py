@@ -117,6 +117,7 @@ async def fetch_and_process_10k(user_id: int, ticker: str, amount: int = 1):
             
             await processing.save_extract_chunk_and_embed(
                 document_id=db_doc.id,
+                user_id=user_id,
                 filename=filename,
                 content_type="text/plain", # ตอนนี้เป็น Text ล้วนแล้ว
                 content=content_bytes

@@ -168,7 +168,7 @@ async def extract_graph_from_text(text_chunk: str) -> dict:
 
 # --- Core Logic: Neo4j Storage (Global Nodes / Local Edges) ---
 
-async def store_graph_data(document_id: int, graph_data: dict):
+async def store_graph_data(document_id: int, user_id: int, graph_data: dict):
     raw_nodes = graph_data.get("nodes", [])
     raw_edges = graph_data.get("edges", [])
 
@@ -274,14 +274,14 @@ async def store_graph_data(document_id: int, graph_data: dict):
         
         node_query = """
         UNWIND $nodes AS n_data
-        MERGE (n:Entity {id: n_data.id})
+        MERGE (n:Entity {id: n_data.id, user_id: $user_id})
         ON CREATE SET n.type = n_data.type, n.label = n_data.label, n.name = n_data.id
         ON MATCH SET n.type = n_data.type, n.label = n_data.label, n.name = n_data.id
         """
         
         try:
             async with driver.session() as session:
-                await session.run(node_query, nodes=nodes)
+                await session.run(node_query, nodes=nodes, user_id=user_id)
             log.info(f"✅ Stored {len(nodes)} nodes with labels")
         except Exception as e:
             log.error(f"❌ Error storing nodes: {e}")
@@ -291,26 +291,26 @@ async def store_graph_data(document_id: int, graph_data: dict):
     if edges:
         edge_query = """
         UNWIND $edges AS e_data
-        MATCH (source:Entity {id: e_data.source})
-        MATCH (target:Entity {id: e_data.target})
-        MERGE (source)-[r:RELATION {type: e_data.relation, doc_id: $doc_id}]->(target)
+        MATCH (source:Entity {id: e_data.source, user_id: $user_id})
+        MATCH (target:Entity {id: e_data.target, user_id: $user_id})
+        MERGE (source)-[r:RELATION {type: e_data.relation, doc_id: $doc_id, user_id: $user_id}]->(target)
         """
         
         try:
             async with driver.session() as session:
-                await session.run(edge_query, edges=edges, doc_id=document_id)
+                await session.run(edge_query, edges=edges, doc_id=document_id, user_id=user_id)
             log.info(f"✅ Stored {len(edges)} edges for Document {document_id}")
         except Exception as e:
             log.error(f"❌ Error storing edges: {e}")
 
 
-async def get_document_graph(document_id: int) -> dict:
+async def get_document_graph(document_id: int, user_id: int) -> dict:
     """
-    ดึง Nodes และ Edges เฉพาะของเอกสาร ID นี้
+    ดึง Nodes และ Edges เฉพาะของเอกสาร ID นี้ สำหรับ user นี้
     """
     # First, let's check if there are any relationships for this document
     check_query = """
-    MATCH ()-[r {doc_id: $doc_id}]->()
+    MATCH ()-[r {doc_id: $doc_id, user_id: $user_id}]->()
     RETURN count(r) as edge_count
     """
     
@@ -320,18 +320,18 @@ async def get_document_graph(document_id: int) -> dict:
     try:
         async with driver.session() as session:
             # Check edge count first
-            check_result = await session.run(check_query, doc_id=document_id)
+            check_result = await session.run(check_query, doc_id=document_id, user_id=user_id)
             check_record = await check_result.single()
             edge_count = check_record["edge_count"] if check_record else 0
             
             if edge_count == 0:
                 # Try to get all nodes that might be related (even without doc_id)
                 fallback_query = """
-                MATCH (n:Entity)
+                MATCH (n:Entity {user_id: $user_id})
                 RETURN n
                 LIMIT 100
                 """
-                result = await session.run(fallback_query)
+                result = await session.run(fallback_query, user_id=user_id)
                 async for record in result:
                     n = record["n"]
                     n_id = n.get("id")
@@ -352,11 +352,11 @@ async def get_document_graph(document_id: int) -> dict:
             else:
                 # Get nodes and edges for this specific document
                 main_query = """
-                MATCH (n)-[r {doc_id: $doc_id}]->(m)
+                MATCH (n:Entity {user_id: $user_id})-[r {doc_id: $doc_id, user_id: $user_id}]->(m:Entity {user_id: $user_id})
                 RETURN n, r, m
                 LIMIT 2000
                 """
-                result = await session.run(main_query, doc_id=document_id)
+                result = await session.run(main_query, doc_id=document_id, user_id=user_id)
                 
                 async for record in result:
                     n = record["n"]
@@ -412,9 +412,9 @@ async def get_document_graph(document_id: int) -> dict:
     return result
 
 
-async def query_graph_context(query_text: str, doc_id: int = None) -> str:
+async def query_graph_context(query_text: str, user_id: int, doc_id: int = None) -> str:
     """
-    GraphRAG: ค้นหาข้อมูลจากกราฟ
+    GraphRAG: ค้นหาข้อมูลจากกราฟ (แบบ User-specific)
     """
     log.info(f"🧠 GraphRAG processing question: '{query_text[:100]}{'...' if len(query_text) > 100 else ''}'")
     
@@ -474,18 +474,17 @@ Return JSON format: {{"terms": ["term1", "term2", "term3"]}}"""
     # Search graph with extracted entities
     cypher_query = """
     UNWIND $entities AS target_name
-    MATCH (n:Entity)
+    MATCH (n:Entity {user_id: $user_id})
     WHERE toLower(n.id) CONTAINS toLower(target_name)
     """
     
     if doc_id:
         cypher_query += """
-        MATCH (n)-[r]-(neighbor)
-        WHERE r.doc_id = $doc_id
+        MATCH (n)-[r {doc_id: $doc_id, user_id: $user_id}]-(neighbor:Entity {user_id: $user_id})
         """
     else:
         cypher_query += """
-        MATCH (n)-[r]-(neighbor)
+        MATCH (n)-[r {user_id: $user_id}]-(neighbor:Entity {user_id: $user_id})
         """
 
     cypher_query += """
@@ -496,7 +495,7 @@ Return JSON format: {{"terms": ["term1", "term2", "term3"]}}"""
     context_lines = []
     try:
         async with driver.session() as session:
-            result = await session.run(cypher_query, entities=entities, doc_id=doc_id)
+            result = await session.run(cypher_query, entities=entities, doc_id=doc_id, user_id=user_id)
             async for record in result:
                 source = record['source']
                 rel = record['rel'] 
@@ -525,21 +524,21 @@ Return JSON format: {{"terms": ["term1", "term2", "term3"]}}"""
     return graph_context
 
 
-async def delete_document_graph(document_id: int):
+async def delete_document_graph(document_id: int, user_id: int):
     """
-    ลบเส้นความสัมพันธ์ของเอกสารนี้ และลบ Node ที่ไม่เหลือความสัมพันธ์ใดๆ
+    ลบเส้นความสัมพันธ์ของเอกสารนี้ และลบ Node ที่ไม่เหลือความสัมพันธ์ใดๆ (สำหรับ user นี้เท่านั้น)
     """
     async with driver.session() as session:
         # 1. ลบเส้น (Edges) ทั้งหมดที่มี doc_id นี้
         await session.run("""
-            MATCH ()-[r {doc_id: $doc_id}]->()
+            MATCH ()-[r {doc_id: $doc_id, user_id: $user_id}]->()
             DELETE r
-        """, doc_id=document_id)
+        """, doc_id=document_id, user_id=user_id)
         
         # 2. ลบ Node กำพร้า (Orphan Nodes)
         # Node ไหนที่ไม่มีเส้นเข้าหรือออกเลย ให้ลบทิ้ง
         await session.run("""
-            MATCH (n:Entity)
+            MATCH (n:Entity {user_id: $user_id})
             WHERE NOT (n)--()
             DELETE n
-        """)
+        """, user_id=user_id)

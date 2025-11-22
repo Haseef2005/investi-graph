@@ -26,6 +26,7 @@ async def create_document(
     asyncio.create_task(
         processing.save_extract_chunk_and_embed( 
             document_id=db_doc.id,
+            user_id=current_user.id,
             filename=file.filename,
             content_type=file.content_type,
             content=content
@@ -92,6 +93,7 @@ async def query_document(
     answer = await processing.generate_answer(
         query=query_text,
         context_chunks=relevant_chunks,
+        user_id=current_user.id,
         doc_id=doc_id
     )
 
@@ -112,6 +114,7 @@ async def query_all_documents(
     answer = await processing.generate_answer(
         query=query_text,
         context_chunks=relevant_chunks,
+        user_id=current_user.id,
         doc_id=None
     )
     
@@ -141,7 +144,7 @@ async def delete_document(
         
     # 3. Delete graph from Neo4j
     try:
-        await delete_document_graph(doc_id)
+        await delete_document_graph(doc_id, current_user.id)
     except Exception as e:
         print(f"⚠️ Failed to delete graph: {e}")
 
@@ -164,7 +167,7 @@ async def get_graph_data(
         raise HTTPException(status_code=404, detail="Document not found")
 
     # 2. Get graph data from Neo4j
-    graph_data = await get_document_graph(doc_id)
+    graph_data = await get_document_graph(doc_id, current_user.id)
     
     return graph_data
 

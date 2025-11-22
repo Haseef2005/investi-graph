@@ -36,6 +36,7 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 async def save_extract_chunk_and_embed(
     document_id: int,
+    user_id: int,
     filename: str,
     content_type: str,
     content: bytes
@@ -82,7 +83,7 @@ async def save_extract_chunk_and_embed(
             if i >= MAX_GRAPH_CHUNKS: break
             log.info(f"🧠 Processing chunk {i+1}/{min(MAX_GRAPH_CHUNKS, len(chunks))} for graph extraction...")
             graph_data = await knowledge_graph.extract_graph_from_text(chunk)
-            await knowledge_graph.store_graph_data(document_id, graph_data)
+            await knowledge_graph.store_graph_data(document_id, user_id, graph_data)
             # Small delay only for API courtesy (retries handle rate limits)
             if i < MAX_GRAPH_CHUNKS - 1:  # Don't sleep after the last chunk
                 log.info("⏳ Sleeping 2s for API courtesy...")
@@ -166,8 +167,8 @@ async def retrieve_relevant_chunks(document_id: int, query_text: str) -> list[mo
 async def generate_answer(
     query: str, 
     context_chunks: list[models.Chunk],
-    doc_id: int = None, # รับ doc_id มาด้วย (ถ้ามี)
-    user_id: int = None # หรือ user_id (สำหรับ global)
+    user_id: int,
+    doc_id: int = None
 ) -> str:
     
     # 1. เตรียม Vector Context (Text Chunks)
@@ -179,7 +180,7 @@ async def generate_answer(
         # ถ้ามี doc_id ให้หาเฉพาะใน doc นั้น, ถ้าไม่มีให้หาแบบ Global (แต่ต้องระวังเรื่อง Permission ในอนาคต)
         # ในที่นี้เอาแบบง่ายก่อน คือถ้าเป็น Global Chat (doc_id=None) เราค้นทั้งกราฟเลย
         # หรือน้องจะส่ง user_id ไปกรองใน Knowledge Graph ก็ได้ (Task Advance)
-        graph_context = await knowledge_graph.query_graph_context(query, doc_id)
+        graph_context = await knowledge_graph.query_graph_context(query, user_id, doc_id)
     except Exception as e:
         log.error(f"GraphRAG failed: {e}")
         graph_context = ""
